@@ -152,8 +152,9 @@ def predict_delivery_time(data: DeliveryInput):
             if col.startswith("Type_of_order_") or col.startswith("Type_of_vehicle_"):
                 df[col] = 0
 
-        order_col = f"Type_of_order_{input_data['Type_of_order']}"
-        vehicle_col = f"Type_of_vehicle_{input_data['Type_of_vehicle']}"
+        # Add trailing space to match model features
+        order_col = f"Type_of_order_{input_data['Type_of_order']} "
+        vehicle_col = f"Type_of_vehicle_{input_data['Type_of_vehicle']} "
 
         if order_col in model.feature_names_in_:
             df[order_col] = 1
