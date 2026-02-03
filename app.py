@@ -111,6 +111,13 @@ def health_check():
 # -------- Prediction Endpoint --------
 @app.post("/predict", response_model=PredictionResponse)
 def predict_delivery_time(data: DeliveryInput):
+    # Check if model is loaded
+    if model is None:
+        raise HTTPException(
+            status_code=503, 
+            detail="Model not loaded. Please check server logs and ensure model file is compatible."
+        )
+    
     try:
         logger.info(f"Received prediction request: {data.dict()}")
         
