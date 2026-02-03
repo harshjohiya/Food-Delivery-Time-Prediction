@@ -4,10 +4,7 @@ import { Loader2, Clock, Utensils, AlertCircle, CheckCircle } from "lucide-react
 interface FormData {
   deliveryPersonAge: string;
   deliveryPersonRating: string;
-  restaurantLatitude: string;
-  restaurantLongitude: string;
-  deliveryLatitude: string;
-  deliveryLongitude: string;
+  distanceKm: string;
   typeOfOrder: string;
   typeOfVehicle: string;
 }
@@ -19,17 +16,13 @@ const Index = () => {
   const [formData, setFormData] = useState<FormData>({
     deliveryPersonAge: "",
     deliveryPersonRating: "",
-    restaurantLatitude: "",
-    restaurantLongitude: "",
-    deliveryLatitude: "",
-    deliveryLongitude: "",
+    distanceKm: "",
     typeOfOrder: "",
     typeOfVehicle: "",
   });
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<number | null>(null);
-  const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleChange = (
@@ -55,6 +48,12 @@ const Index = () => {
       return false;
     }
 
+    const distance = parseFloat(formData.distanceKm);
+    if (distance <= 0 || distance > 30) {
+      setError("Distance must be between 0 and 30 km");
+      return false;
+    }
+
     return true;
   };
 
@@ -62,7 +61,6 @@ const Index = () => {
     e.preventDefault();
     setError(null);
     setResult(null);
-    setDistanceKm(null);
 
     if (!validateForm()) return;
 
@@ -72,10 +70,7 @@ const Index = () => {
       const payload = {
         Delivery_person_Age: parseInt(formData.deliveryPersonAge),
         Delivery_person_Ratings: parseFloat(formData.deliveryPersonRating),
-        Restaurant_latitude: parseFloat(formData.restaurantLatitude),
-        Restaurant_longitude: parseFloat(formData.restaurantLongitude),
-        Delivery_location_latitude: parseFloat(formData.deliveryLatitude),
-        Delivery_location_longitude: parseFloat(formData.deliveryLongitude),
+        distance_km: parseFloat(formData.distanceKm),
         Type_of_order: formData.typeOfOrder,
         Type_of_vehicle: formData.typeOfVehicle,
       };
@@ -103,9 +98,6 @@ const Index = () => {
       console.log("Response:", data);
       
       setResult(data.predicted_delivery_time_minutes);
-      if (data.distance_km) {
-        setDistanceKm(data.distance_km);
-      }
     } catch (err) {
       console.error("Prediction error:", err);
       
@@ -180,54 +172,26 @@ const Index = () => {
               </div>
             </div>
 
-            {/* Restaurant Location */}
+            {/* Distance */}
             <div>
-              <p className="label-text">Restaurant Location</p>
-              <div className="grid grid-cols-2 gap-3">
-                <input
-                  type="number"
-                  name="restaurantLatitude"
-                  value={formData.restaurantLatitude}
-                  onChange={handleChange}
-                  placeholder="Latitude"
-                  step="any"
-                  className="input-field"
-                />
-                <input
-                  type="number"
-                  name="restaurantLongitude"
-                  value={formData.restaurantLongitude}
-                  onChange={handleChange}
-                  placeholder="Longitude"
-                  step="any"
-                  className="input-field"
-                />
-              </div>
-            </div>
-
-            {/* Delivery Location */}
-            <div>
-              <p className="label-text">Delivery Location</p>
-              <div className="grid grid-cols-2 gap-3">
-                <input
-                  type="number"
-                  name="deliveryLatitude"
-                  value={formData.deliveryLatitude}
-                  onChange={handleChange}
-                  placeholder="Latitude"
-                  step="any"
-                  className="input-field"
-                />
-                <input
-                  type="number"
-                  name="deliveryLongitude"
-                  value={formData.deliveryLongitude}
-                  onChange={handleChange}
-                  placeholder="Longitude"
-                  step="any"
-                  className="input-field"
-                />
-              </div>
+              <label htmlFor="distanceKm" className="label-text">
+                Distance (km)
+              </label>
+              <input
+                type="number"
+                id="distanceKm"
+                name="distanceKm"
+                value={formData.distanceKm}
+                onChange={handleChange}
+                placeholder="e.g., 8.5"
+                min="0.5"
+                max="30"
+                step="0.1"
+                className="input-field"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Enter the estimated distance between restaurant and delivery location
+              </p>
             </div>
 
             {/* Dropdowns */}
@@ -264,7 +228,7 @@ const Index = () => {
                   <option value="">Select vehicle</option>
                   <option value="motorcycle">Motorcycle</option>
                   <option value="scooter">Scooter</option>
-                  <option value="bicycle">Bicycle</option>
+                  <option value="electric_scooter">Electric Scooter</option>
                 </select>
               </div>
             </div>
@@ -302,11 +266,6 @@ const Index = () => {
                   minutes
                 </span>
               </p>
-              {distanceKm !== null && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Distance: {distanceKm.toFixed(2)} km
-                </p>
-              )}
             </div>
           )}
 

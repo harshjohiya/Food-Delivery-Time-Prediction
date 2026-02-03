@@ -44,10 +44,7 @@ app.add_middleware(
 class DeliveryInput(BaseModel):
     Delivery_person_Age: int = Field(..., ge=18, le=70, description="Age of delivery person")
     Delivery_person_Ratings: float = Field(..., ge=1.0, le=5.0, description="Rating of delivery person")
-    Restaurant_latitude: float = Field(..., ge=-90, le=90, description="Restaurant latitude")
-    Restaurant_longitude: float = Field(..., ge=-180, le=180, description="Restaurant longitude")
-    Delivery_location_latitude: float = Field(..., ge=-90, le=90, description="Delivery location latitude")
-    Delivery_location_longitude: float = Field(..., ge=-180, le=180, description="Delivery location longitude")
+    distance_km: float = Field(..., gt=0, le=30, description="Distance in kilometers")
     Type_of_order: str = Field(..., description="Type of order (e.g., Snack, Meal, Drinks, Buffet)")
     Type_of_vehicle: str = Field(..., description="Type of vehicle (e.g., motorcycle, scooter, bicycle)")
 
@@ -60,7 +57,7 @@ class DeliveryInput(BaseModel):
     
     @validator('Type_of_vehicle')
     def validate_vehicle_type(cls, v):
-        valid_vehicles = ['motorcycle', 'scooter', 'bicycle']
+        valid_vehicles = ['motorcycle', 'scooter', 'electric_scooter']
         if v not in valid_vehicles:
             raise ValueError(f'Type_of_vehicle must be one of {valid_vehicles}')
         return v
@@ -68,20 +65,6 @@ class DeliveryInput(BaseModel):
 
 class PredictionResponse(BaseModel):
     predicted_delivery_time_minutes: float = Field(..., description="Predicted delivery time in minutes")
-    distance_km: Optional[float] = Field(None, description="Calculated distance in kilometers")
-    success: bool = Field(True, description="Prediction success status")
-
-
-
-# -------- Distance Function --------
-def haversine(lat1, lon1, lat2, lon2):
-    R = 6371
-    lat1, lon1, lat2, lon2 = map(np.radians, [lat1, lon1, lat2, lon2])
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-    a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
-    return 2 * R * np.arcsin(np.sqrt(a))
-
 
 
 # -------- Health Check Endpoint --------
@@ -123,26 +106,14 @@ def predict_delivery_time(data: DeliveryInput):
         
         # Convert to dict
         input_data = data.dict()
-
-        # Compute distance
-        distance_km = haversine(
-            input_data["Restaurant_latitude"],
-            input_data["Restaurant_longitude"],
-            input_data["Delivery_location_latitude"],
-            input_data["Delivery_location_longitude"]
-        )
         
-        logger.info(f"Calculated distance: {distance_km:.2f} km")
+        logger.info(f"Distance: {input_data['distance_km']:.2f} km")
 
         # Base dataframe
         row = {
             "Delivery_person_Age": input_data["Delivery_person_Age"],
             "Delivery_person_Ratings": input_data["Delivery_person_Ratings"],
-            "Restaurant_latitude": input_data["Restaurant_latitude"],
-            "Restaurant_longitude": input_data["Restaurant_longitude"],
-            "Delivery_location_latitude": input_data["Delivery_location_latitude"],
-            "Delivery_location_longitude": input_data["Delivery_location_longitude"],
-            "distance_km": distance_km,
+            "distance_km": input_data["distance_km"],
         }
 
         df = pd.DataFrame([row])
@@ -152,9 +123,8 @@ def predict_delivery_time(data: DeliveryInput):
             if col.startswith("Type_of_order_") or col.startswith("Type_of_vehicle_"):
                 df[col] = 0
 
-        # Add trailing space to match model features
-        order_col = f"Type_of_order_{input_data['Type_of_order']} "
-        vehicle_col = f"Type_of_vehicle_{input_data['Type_of_vehicle']} "
+        order_col = f"Type_of_order_{input_data['Type_of_order']}"
+        vehicle_col = f"Type_of_vehicle_{input_data['Type_of_vehicle']}"
 
         if order_col in model.feature_names_in_:
             df[order_col] = 1
@@ -175,9 +145,7 @@ def predict_delivery_time(data: DeliveryInput):
         logger.info(f"Prediction: {prediction:.2f} minutes")
 
         return {
-            "predicted_delivery_time_minutes": round(float(prediction), 2),
-            "distance_km": round(float(distance_km), 2),
-            "success": True
+            "predicted_delivery_time_minutes": round(float(prediction), 2)
         }
     
     except ValueError as ve:
